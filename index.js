@@ -40,6 +40,13 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: process.env.MONGODB_URL }),
+  cookie: {
+    maxAge: 168 * 60 * 60 * 1000,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  },
 }));
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -95,7 +102,7 @@ app.get('/dashboard', (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect('/');
   }
-  res.send(`Welcome, ${req.user.username}`);
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 app.get('/logout', (req, res) => {
