@@ -185,7 +185,7 @@ async function checkSiteStatus(site) {
     const start = Date.now();
     const response = await axios.get(site.url);
     const ping = Date.now() - start;
-    const newStatus = response.status === 200 ? 'UP' : 'DOWN';
+    const newStatus = response.status === 200 ? '🟢' : '🔴';
 
     if (site.status !== newStatus) {
       site.status = newStatus;
@@ -194,7 +194,7 @@ async function checkSiteStatus(site) {
       await site.save();
     }
   } catch (error) {
-    const newStatus = 'DOWN';
+    const newStatus = '🔴';
 
     if (site.status !== newStatus) {
       site.status = newStatus;
@@ -205,11 +205,15 @@ async function checkSiteStatus(site) {
   }
 }
 
-function monitorSites() {
-  Site.find({}, (err, sites) => {
-    if (err) return console.error(err);
-    sites.forEach(site => checkSiteStatus(site));
-  });
+async function monitorSites() {
+  try {
+    const sites = await Site.find({});
+    for (const site of sites) {
+      await checkSiteStatus(site);
+    }
+  } catch (err) {
+    console.error('Error monitoring sites:', err);
+  }
 }
 
 setInterval(monitorSites, 2 * 60 * 1000);
