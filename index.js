@@ -6,6 +6,7 @@ const passport = require('passport');
 const { Strategy: DiscordStrategy } = require('passport-discord');
 const axios = require('axios');
 const path = require('path');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 const port = 8080;
