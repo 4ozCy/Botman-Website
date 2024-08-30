@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Botman Dashboard</title>
+    <style>
+        body {
+            font-family: Courier New, monaco, monospace;
+            margin: 20px;
+           background-color: #2c3e50;
+           color: #ecf0f1;
+        }
+        h1 {
+            color: #ecf0f1;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Botman Uptime Monitor</h1>
+    <p>Welcome, <span id="username"></span></p>
+    
+    <h2>Add a New Site to Monitor</h2>
+    <form id="siteForm">
+        <input type="text" id="urlInput" placeholder="Enter site URL" required>
+        <button type="submit">Add Site</button>
+    </form>
+
+    <h2>Monitored Sites</h2>
+    <ul id="siteList"></ul>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const usernameElement = document.getElementById('username');
+            const siteList = document.getElementById('siteList');
+            const siteForm = document.getElementById('siteForm');
+            const urlInput = document.getElementById('urlInput');
+
+            async function fetchUser() {
+                const response = await fetch('/site/get-sites');
+                if (response.ok) {
+                    const sites = await response.json();
+                    renderSiteList(sites);
+                }
+            }
+
+            function renderSiteList(sites) {
+                siteList.innerHTML = '';
+                sites.forEach(site => {
+                    const li = document.createElement('li');
+                    li.textContent = `${site.url} - ${site.status}`;
+                    siteList.appendChild(li);
+                });
+            }
+
+            siteForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const url = urlInput.value.trim();
+                if (url) {
+                    const response = await fetch('/site/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ url }),
+                    });
+                    if (response.ok) {
+                        fetchUser();
+                    }
+                }
+            });
+
+            fetchUser();
+        });
+    </script>
+</body>
+  </html>
