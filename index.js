@@ -1,17 +1,14 @@
 require('dotenv').config();
-const Koa = require('koa');
-const Router = require('@koa/router');
-const session = require('koa-session');
-const bodyParser = require('koa-bodyparser');
+const express = require('express');
+const session = require('express-session');
 const mongoose = require('mongoose');
 const passport = require('passport');
 const { Strategy: DiscordStrategy } = require('passport-discord');
 const axios = require('axios');
-const serve = require('koa-static');
 const path = require('path');
 
-const app = new Koa();
-const router = new Router();
+const app = express();
+const port = 8080;
 
 mongoose.connect(process.env.MONGODB_URL, {
   useNewUrlParser: true,
@@ -37,18 +34,23 @@ const SiteSchema = new mongoose.Schema({
 const User = mongoose.model('User', UserSchema);
 const Site = mongoose.model('Site', SiteSchema);
 
-app.keys = [process.env.SESSION_SECRET];
-app.use(session({}, app));
-app.use(bodyParser());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+}));
+
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(passport.initialize());
 app.use(passport.session());
-
-app.use(serve(path.join(__dirname, 'public')));
 
 passport.use(new DiscordStrategy({
   clientID: process.env.CLIENT_ID,
   clientSecret: process.env.CLIENT_SECRET,
-  callbackURL: process.envREDIRECT_URI,
+  callbackURL: process.env.REDIRECT_URI,
   scope: ['identify', 'email'],
 }, async (accessToken, refreshToken, profile, done) => {
   let user = await User.findOne({ discordId: profile.id });
@@ -80,56 +82,54 @@ passport.deserializeUser(async (id, done) => {
   done(null, user);
 });
 
-router.get('/auth/discord', passport.authenticate('discord'));
+app.get('/auth/discord', passport.authenticate('discord'));
 
-router.get('/auth/discord/callback',
-  passport.authenticate('discord', { failureRedirect: '/' }),
-  (ctx) => {
-    ctx.redirect('/dashboard');
+app.get('/auth/discord/callback', 
+  passport.authenticate('discord', { failureRedirect: '/' }), 
+  (req, res) => {
+    res.redirect('/dashboard');
   }
 );
 
-router.get('/dashboard', async (ctx) => {
-  if (!ctx.isAuthenticated()) {
-    return ctx.redirect('/');
+app.get('/dashboard', (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.redirect('/');
   }
-  ctx.body = `Welcome, ${ctx.state.user.username}`;
+  res.send(`Welcome, ${req.user.username}`);
 });
 
-router.get('/logout', (ctx) => {
-  ctx.logout();
-  ctx.redirect('/');
+app.get('/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    res.redirect('/');
+  });
 });
 
-router.post('/site/add', async (ctx) => {
-  if (!ctx.isAuthenticated()) {
-    ctx.status = 401;
-    ctx.body = 'Unauthorized';
-    return;
+app.post('/site/add', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  const { url } = ctx.request.body;
+  const { url } = req.body;
 
   const newSite = new Site({
-    userId: ctx.state.user._id,
+    userId: req.user._id,
     url,
     status: 'Unknown',
     lastChecked: new Date(),
   });
 
   await newSite.save();
-  ctx.body = { message: 'Site added for monitoring', site: newSite };
+  res.json({ message: 'Site added for monitoring', site: newSite });
 });
 
-router.get('/site/get-sites', async (ctx) => {
-  if (!ctx.isAuthenticated()) {
-    ctx.status = 401;
-    ctx.body = 'Unauthorized';
-    return;
+app.get('/site/get-sites', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  const sites = await Site.find({ userId: ctx.state.user._id });
-  ctx.body = sites;
+  const sites = await Site.find({ userId: req.user._id });
+  res.json(sites);
 });
 
 async function checkSiteStatus(site) {
@@ -166,8 +166,6 @@ function monitorSites() {
 
 setInterval(monitorSites, 2 * 60 * 1000);
 
-app.use(router.routes()).use(router.allowedMethods());
-
-app.listen(5000, () => {
-  console.log('Server running on http://localhost:5000');
+app.listen(port, () => {
+  console.log('Server running on http://localhost:${port}');
 });
