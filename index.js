@@ -7,7 +7,6 @@ const { Strategy: DiscordStrategy } = require('passport-discord');
 const axios = require('axios');
 const path = require('path');
 
-
 const app = express();
 const port = 8080;
 
@@ -128,6 +127,13 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (id, done) => {
   const user = await User.findById(id);
   done(null, user);
+});
+
+app.get('/', (req, res) => {
+  if (req.isAuthenticated()) {
+    return res.redirect('/dashboard');
+  }
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.get('/auth/discord', passport.authenticate('discord'));
