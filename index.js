@@ -167,5 +167,5 @@ function monitorSites() {
 setInterval(monitorSites, 2 * 60 * 1000);
 
 app.listen(port, () => {
-  console.log('Server running on http://localhost:${port}');
+    console.log(`Server is running on http://localhost:${port}`);
 });
