@@ -31,62 +31,19 @@ const SiteSchema = new mongoose.Schema({
   downtime: { type: Number, default: 0 }
 });
 
-const sessionSchema = new mongoose.Schema({
-  _id: String,
-  session: Object,
-  expires: Date
-});
-
 const User = mongoose.model('User', UserSchema);
 const Site = mongoose.model('Site', SiteSchema);
-const Session = mongoose.model('Session', sessionSchema);
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.use(session({
   secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  store: new (class extends session.Store {
-    async get(sid, callback) {
-      try {
-        const session = await Session.findById(sid);
-        if (session) {
-          callback(null, session.session);
-        } else {
-          callback();
-        }
-      } catch (err) {
-        callback(err);
-      }
-    }
-    
-    async set(sid, sessionData, callback) {
-      try {
-        const expiryDate = new Date(Date.now() + sessionData.cookie.maxAge);
-        await Session.findByIdAndUpdate(sid, { session: sessionData, expires: expiryDate }, { upsert: true });
-        callback(null);
-      } catch (err) {
-        callback(err);
-      }
-    }
-    
-    async destroy(sid, callback) {
-      try {
-        await Session.findByIdAndDelete(sid);
-        callback(null);
-      } catch (err) {
-        callback(err);
-      }
-    }
-  })(),
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-  },
+      maxAge: 60000 * 60 * 24
+},
+  resave: true,
+  saveUninitialized: false,
 }));
 
 app.use(express.static(path.join(__dirname, 'public')));
